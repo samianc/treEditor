@@ -1,0 +1,205 @@
+<!--
+/*
+ * @desc Editor de arbol para uso multiple
+ *
+ * @author Saulo Damian Cabral (saulo@virtua.mx), 
+ *
+ * @copyright     Copyright 2015, Saulo Damian Cabral
+ * @version       TreEditor v 1.0
+ */
+-->
+<!DOCTYPE html> 
+<html lang="es" >
+<head> 
+    <meta charset="utf-8" />
+    <title>TreEditor</title> 
+    <meta name="viewport" content="width=device-width, minimum-scale=1, maximum-scale=1">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+</head>
+<body>
+    <section id="treEditor">
+    </section>
+    <script type="text/javascript">
+    jQuery.fn.treEditor = function(tree) {
+        treContainer = $(this);
+        treContainer.html('');
+        if($('#treEditor-style').size() == 0){
+            $('<style id="treEditor-style" type="text/css"> @import url(https://fonts.googleapis.com/css?family=Lato);.treContainer *{font-family: Lato, sans-serif;}.treContainer #NewName{width: 100%; font-size: 30px; border: 1px solid #2e2e2e; padding: 0.5%; background-color: #2e2e2e; color: white; } .treContainer #button{cursor:pointer;text-align:center;width: 100%; background-color: #8EBC00; border: none; color: white; font-size: 30px; } .treContainer{width: 100%; overflow-x: hidden; overflow-y: auto; max-width: 100%; } .treEditor{color: white; background-color: #CECECE; display: table; padding: 0; position: relative; width: 100%; } .treEditor div{padding: 10px 5px; position: relative; border: 1px solid #2e2e2e;height: 18px;} .treEditor .parent{background-color: #2e2e2e; } .treEditor .child{background-color: #3e3e3e; } .treEditor .controls-container{display: table;float: right; margin-left: 10px; } .treEditor span{color: white; padding: 5px; height: 10px; width: 10px; float: right; display: table; text-align: center; background-color: #2e2e2e; line-height: 8px; cursor: pointer; } .treEditor .tmpElement{border: 1px solid #A5A5A5; background-color: #a5a5a5; } .treEditor .tmpElement .controls-container{opacity: 0; } .treEditor .foreveralone  #view{display: none; } .treEditor #view{line-height: 10px;font-size: 10px; } .treEditor .droped{display: none !important; }.treEditor div input{display:none;}.treEditor .treEditing label{display:none}.treEditor .treEditing input{background-color: #2e2e2e;border: medium none;color: white;display: block;float: left;font-family: Lato,sans-serif;font-size: 15px;margin-top: 5px;padding: 0.5%;width: 99%;}.treEditor .treEditing{background-color: #5f5f5f;height: 150px;}.treEditor .treEditing .controls-container{display:none;}</style>').insertAfter(treContainer);
+        }
+        treContainer.append('<input id="NewName" placeholder="Nuevo elemento"><div id="button">Agregar</div><section id="treUI"></section>');
+        treContainer.addClass('treContainer');
+        ui = treContainer.find('#treUI');
+        ui.addClass('treEditor');
+        deph = 0;
+        id = 0;
+        function insert(array,name,parent){
+            out = '';
+            $.each(array, function(e, val) {
+                if(val.id>id){
+                    id = val.id;
+                }
+                out += '<div id="treElement-'+val.id+'" class="'+name+' original" original-id="'+val.id+'" parent = "'+parent+'" deph="'+deph+'" style="margin-left:'+deph*20+'px;"><label>'+val.nombre+'</label><article class="controls-container"><span id="view" class="treEditor-controls">▲</span><span id="add" class="treEditor-controls">+</span><span id="drop" class="treEditor-controls">-</span><span id="edit" class="treEditor-controls">✎</span></article></div>';
+                if(!$.isEmptyObject(val.submenu)){
+                    deph++;
+                    out += insert(val.submenu,'child', val.id);
+                    deph--;
+                }
+
+            });
+            return out;
+        }
+        function search4eAln(){
+            elmnts = ui.find('div.original');
+            $.each(elmnts,function(e,val){
+                elm = $(val);
+                if($('div[parent="'+elm.attr('original-id')+'"]').size() == 0){
+                    elm.addClass('foreveralone');
+                }
+            });
+        }
+        ui.append(insert(tree,'parent',0));
+        search4eAln();
+        function remove(treElement, mode){
+            if(typeof mode === 'undefined'){
+                if(treElement.hasClass('original')){
+                    treElement.addClass('droped');
+                }
+                else{
+                    not_original = ui.find('div:not(.original)');
+                    tempID = parseInt(treElement.attr('tmp-id'));
+                    $.each(not_original, function(e, val){
+                        tmpElm = $(val);
+                        if(parseInt(tmpElm.attr('tmp-id')) > tempID){
+                            tmpElmID = tmpElm.attr('tmp-id')-1;
+                            tmpElm.attr('tmp-id',tmpElmID);
+                            tmpElm.attr('id', 'treElement-'+tmpElmID);
+                        }
+                    })
+                    id--;
+                    treElement.remove();
+                }
+                parent = treElement.attr('parent');
+                if($('div[parent="'+parent+'"]:not(.droped)').size() == 0){
+                    $('#treElement-'+parent).addClass('foreveralone');
+                }
+            }
+            else{
+                treElement.css('opacity','.8');
+            }
+            childs = $('div[parent="'+treElement.attr('id').split('-')[1]+'"]');
+            if(childs.size()>0){
+                $.each(childs, function(e,val){
+                    remove($(val),mode);
+                });
+            }
+        }
+        function add(treElement,mode){
+            if(typeof mode === 'undefined'){
+                ui.find('.tmpElement').remove();
+                id++;
+                treElement.removeClass('foreveralone');
+                parent = treElement.attr('id').split('-')[1];
+                if(parent == 0){
+                    name = 'parent';
+                }
+                else{
+                    name = 'child';
+                }
+                deph = parseInt(treElement.attr('deph'))+1;
+                newElement = '<div id="treElement-'+id+'" class="'+name+' foreveralone" parent = "'+parent+'" deph="'+deph+'" tmp-id="'+id+'" style="margin-left:'+deph*20+'px;"><label></label><article class="controls-container"><span id="view" class="treEditor-controls">▲</span><span id="add" class="treEditor-controls">+</span><span id="drop" class="treEditor-controls">-</span><span id="edit" class="treEditor-controls">✎</span></article></div>';
+                $(newElement).insertAfter(treElement);
+                treElement.next().find('#edit').click();
+            }
+            else{
+                tmpElement = '<div class="tmpElement" style="margin-left:'+(parseInt(treElement.attr('deph'))+1)*20+'px;"><label>Nuevo elemento</label></div>';
+                $(tmpElement).insertAfter(treElement);
+            }
+        }
+        function view(treElement,mode){
+            childs = $('div[parent="'+treElement.attr('id').split('-')[1]+'"]');
+            if(childs.size()>0){
+                if(mode){
+                    childs.show();
+                    childs.find('#view').text('▲');
+                }
+                else{
+                    childs.hide();
+                }
+                $.each(childs, function(e,val){
+                    view($(val),mode);
+                });
+            }
+        }
+        function edit(treElement){
+            if(treElement.find('input').size()==0){
+                treElement.append('<input id="tmpName" placeholder="Titulo">');
+            }
+            pending = ui.find('.treEditing');
+            pending.find('label').text(pending.find('input').val());
+            pending.removeClass('treEditing');
+            treElement.addClass('treEditing');
+            treElement.find('input:first').val(treElement.find('label').text()).focus();
+        }
+        $(document).on('click','.treEditor div span',function(){
+            elm = $(this);
+            ui.find('.treEditing').removeClass('treEditing');
+            switch(elm.attr('id')){
+                case 'drop':
+                    remove(elm.parents('div:first'));
+                break;
+                case 'add':
+                    add(elm.parents('div:first'));
+                break;
+                case 'view':
+                    if(elm.text() == '▲'){
+                        elm.text('▼');
+                        view(elm.parents('div:first'),false);
+                    }
+                    else{
+                        elm.text('▲');
+                        view(elm.parents('div:first'),true);
+                    }
+                break;
+                case 'edit':
+                    edit(elm.parents('div:first'));
+                break;
+            }
+        });
+        $(document).on('click','.treContainer #button',function(){
+            name = $('.treContainer #NewName').val();
+            if(name == '')
+            {
+                $('#NewName').focus()
+                return;
+            }
+            id++;
+            deph=0;
+            ui.append('<div id="treElement-'+id+'" class="parent foreveralone" parent = "0" deph="'+deph+'" tmp-id="'+id+'" style="margin-left:'+deph*20+'px;"><label>'+name+'</label><article class="controls-container"><span id="view" class="treEditor-controls">▲</span><span id="add" class="treEditor-controls">+</span><span id="drop" class="treEditor-controls">-</span><span id="edit" class="treEditor-controls">✎</span></article></div>');
+            $('.treContainer #NewName').val('');
+        });
+        $(document).on('mouseenter','.treEditor #drop,.treEditor #add',function(){
+            elm = $(this);
+            if(elm.attr('id') == 'drop'){
+                remove(elm.parents('div:first'),false);
+            }
+            else if(elm.attr('id') == 'add'){
+                add(elm.parents('div:first'),false);
+            }
+        });
+        $(document).on('mouseleave','.treEditor #drop,.treEditor #add',function(){
+            elm = $(this);
+            if(elm.attr('id') == 'drop'){
+                ui.find('div').css('opacity',1);
+            }
+            else if(elm.attr('id') == 'add'){
+                ui.find('.tmpElement').remove();
+            }
+        });
+        $(document).on('click','.treContainer div label',function(){
+            edit($(this).parents('div:first'));
+        });
+    };
+    $('#treEditor').treEditor([{"id":1,"nombre":"Inicio","link_to":"#inicio","tipo":"interno","padre_id":0,"submenu":[{"id":2,"nombre":"Nosotros","link_to":"#nosotros","tipo":"interno","padre_id":1,"submenu":[{"id":4,"nombre":"Galeria","link_to":"#galeria","tipo":"interno","padre_id":2,"submenu":[]}]}]},{"id":6,"nombre":"Servicios","link_to":"#servicios","tipo":"interno","padre_id":0,"submenu":[{"id":5,"nombre":"Contacto","link_to":"#contacto","tipo":"interno","padre_id":6,"submenu":[{"id":3,"nombre":"Productos","link_to":"#productos","tipo":"interno","padre_id":5,"submenu":[]},{"id":7,"nombre":"JE SU CRIS TO","link_to":"elrobotdelfuturo.com","tipo":"externo","padre_id":5,"submenu":[{"id":8,"nombre":"la virgen","link_to":"#asd","tipo":"externo","padre_id":7,"submenu":[{"id":9,"nombre":"santa cloust","link_to":"#123","tipo":"interno","padre_id":8,"submenu":[{"id":13,"nombre":"asda","link_to":"dsadasd","tipo":"interno","padre_id":9,"submenu":[]},{"id":14,"nombre":"interno","link_to":"interno","tipo":"interno","padre_id":9,"submenu":[]},{"id":15,"nombre":"interno","link_to":"interno","tipo":"interno","padre_id":9,"submenu":[]}]},{"id":10,"nombre":"asdasdsa","link_to":"asdasd","tipo":"interno","padre_id":8,"submenu":[]},{"id":11,"nombre":"nasiodnasio","link_to":"ansidoando","tipo":"interno","padre_id":8,"submenu":[]},{"id":12,"nombre":"asidnaoinda","link_to":"aosndoasdni","tipo":"interno","padre_id":8,"submenu":[]}]}]}]}]}]);
+    </script>
+</body> 
+</html>
